@@ -1,0 +1,101 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.header {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #334155;
+}
+
+.header h1 {
+  margin: 0;
+  margin-right: auto;
+  font-size: 1.5rem;
+}
+
+.chat {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.msg {
+  display: flex;
+}
+
+.msg.user {
+  justify-content: flex-end;
+}
+
+.msg-bubble {
+  max-width: 75%;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  background: #1e293b;
+  white-space: pre-wrap;
+}
+
+.msg.assistant .msg-bubble {
+  border-top-left-radius: 0;
+}
+
+.msg.user .msg-bubble {
+  background: #2563eb;
+  border-top-right-radius: 0;
+}
+
+.footer {
+  padding: 1rem;
+  border-top: 1px solid #334155;
+}
+
+.input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+input,
+select {
+  padding: 0.75rem;
+  border: 1px solid #475569;
+  border-radius: 0.5rem;
+  background: #1e293b;
+  color: #fff;
+}
+
+input {
+  flex: 1;
+}
+
+button {
+  padding: 0.75rem 1.25rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.btn-clear {
+  background: #dc2626;
+}
+
+.error {
+  margin-bottom: 0.5rem;
+  color: #ef4444;
+}
