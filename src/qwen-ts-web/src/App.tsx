@@ -2,7 +2,7 @@ import { useState } from 'react'
 import './App.css'
 import { useOllamaChat } from './hooks/useOllamaChat'
 
-const MODELS = ['qwen2.5:7b', 'qwen2.5:14b', 'qwen2.5:3b']
+const MODELS = ['qwen2.5:7b', 'qwen2.5:14b', 'qwen2.5:3b', 'qwen3.6:latest']
 
 export default function App() {
   const [input, setInput] = useState('')
