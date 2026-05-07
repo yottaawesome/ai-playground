@@ -7,6 +7,7 @@ This is for learning how to work with AI/LLMs, both cloud-based and local ones. 
 ## Technologies
 
 * C++
+* C#
 * Ollama
 * React
 * Typescript

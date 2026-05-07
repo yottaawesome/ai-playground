@@ -1,0 +1,221 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@inject OllamaClient Ollama
+@inject MarkdownFormatter Markdown
+
+<PageTitle>Ollama C# Chat</PageTitle>
+
+<div class="chat-shell">
+    <header class="chat-header">
+        <div>
+            <p class="eyebrow">Local Ollama</p>
+            <h1>Ollama C# Chat</h1>
+            <p class="subtitle">Blazor Server chat client with streamed Markdown responses.</p>
+        </div>
+
+        <div class="toolbar">
+            <label>
+                <span>Model</span>
+                <select @bind="selectedModel" disabled="@(isLoadingModels || isSending || models.Count == 0)">
+                    @if (models.Count == 0)
+                    {
+                        <option value="">No models found</option>
+                    }
+                    else
+                    {
+                        @foreach (var model in models)
+                        {
+                            <option value="@model">@model</option>
+                        }
+                    }
+                </select>
+            </label>
+
+            <button type="button" class="ghost-button" @onclick="LoadModelsAsync" disabled="@(isLoadingModels || isSending)">
+                @(isLoadingModels ? "Loading..." : "Refresh")
+            </button>
+            <button type="button" class="danger-button" @onclick="ClearChat" disabled="@isSending">
+                Clear
+            </button>
+        </div>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert" role="alert">@errorMessage</div>
+    }
+
+    <main class="messages" aria-live="polite">
+        @if (messages.Count == 0)
+        {
+            <section class="empty-state">
+                <h2>Start a conversation</h2>
+                <p>Select any locally installed Ollama model, then ask for an explanation, code sample, checklist, or anything else that benefits from Markdown formatting.</p>
+            </section>
+        }
+
+        @foreach (var message in messages)
+        {
+            <article class="message @message.Role">
+                <div class="avatar">@GetAvatar(message.Role)</div>
+                <div class="message-card">
+                    <div class="message-meta">@GetLabel(message.Role)</div>
+                    <div class="markdown-body">@Markdown.ToMarkup(message.Content)</div>
+                </div>
+            </article>
+        }
+
+        @if (isSending)
+        {
+            <div class="status-line">Streaming response from @selectedModel...</div>
+        }
+    </main>
+
+    <footer class="composer">
+        <textarea
+            @bind="prompt"
+            @bind:event="oninput"
+            disabled="@(isSending || models.Count == 0)"
+            placeholder="Ask Ollama to respond with headings, lists, tables, or code blocks..."></textarea>
+
+        <div class="composer-actions">
+            <span>@(selectedModel is null ? "Load models to begin." : $"Using {selectedModel}")</span>
+            @if (isSending)
+            {
+                <button type="button" class="ghost-button" @onclick="StopStreaming">Stop</button>
+            }
+            else
+            {
+                <button type="button" class="primary-button" @onclick="SendAsync" disabled="@(!CanSend)">Send</button>
+            }
+        </div>
+    </footer>
+</div>
+
+@code {
+    private readonly List<ChatMessage> messages = [];
+    private List<string> models = [];
+    private string? selectedModel;
+    private string prompt = string.Empty;
+    private string? errorMessage;
+    private bool isLoadingModels = true;
+    private bool isSending;
+    private CancellationTokenSource? sendCancellation;
+
+    private bool CanSend =>
+        !isSending &&
+        !string.IsNullOrWhiteSpace(prompt) &&
+        !string.IsNullOrWhiteSpace(selectedModel);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadModelsAsync();
+    }
+
+    private async Task LoadModelsAsync()
+    {
+        isLoadingModels = true;
+        errorMessage = null;
+
+        try
+        {
+            models = [.. await Ollama.GetModelsAsync()];
+            selectedModel = selectedModel is not null && models.Contains(selectedModel)
+                ? selectedModel
+                : models.FirstOrDefault();
+
+            if (models.Count == 0)
+            {
+                errorMessage = "Ollama is running, but no local models were returned. Pull a model with `ollama pull qwen2.5:7b`, then refresh.";
+            }
+        }
+        catch (Exception exception)
+        {
+            models = [];
+            selectedModel = null;
+            errorMessage = $"Could not load Ollama models: {exception.Message}";
+        }
+        finally
+        {
+            isLoadingModels = false;
+        }
+    }
+
+    private async Task SendAsync()
+    {
+        if (!CanSend || selectedModel is null)
+        {
+            return;
+        }
+
+        var userMessage = new ChatMessage("user", prompt.Trim());
+        prompt = string.Empty;
+        errorMessage = null;
+        messages.Add(userMessage);
+
+        var assistantMessage = new ChatMessage("assistant", string.Empty);
+        messages.Add(assistantMessage);
+
+        isSending = true;
+        sendCancellation = new CancellationTokenSource();
+        var requestMessages = messages.Where(message => !ReferenceEquals(message, assistantMessage)).ToList();
+
+        try
+        {
+            await foreach (var chunk in Ollama.StreamChatAsync(selectedModel, requestMessages, sendCancellation.Token))
+            {
+                assistantMessage.Content += chunk;
+                await InvokeAsync(StateHasChanged);
+            }
+
+            if (string.IsNullOrWhiteSpace(assistantMessage.Content))
+            {
+                assistantMessage.Content = "_Ollama completed the request without returning content._";
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            if (string.IsNullOrWhiteSpace(assistantMessage.Content))
+            {
+                messages.Remove(assistantMessage);
+            }
+        }
+        catch (Exception exception)
+        {
+            messages.Remove(assistantMessage);
+            errorMessage = $"Ollama request failed: {exception.Message}";
+        }
+        finally
+        {
+            sendCancellation.Dispose();
+            sendCancellation = null;
+            isSending = false;
+        }
+    }
+
+    private void StopStreaming()
+    {
+        sendCancellation?.Cancel();
+    }
+
+    private void ClearChat()
+    {
+        sendCancellation?.Cancel();
+        messages.Clear();
+        errorMessage = null;
+    }
+
+    private static string GetAvatar(string role) => role switch
+    {
+        "user" => "You",
+        "assistant" => "AI",
+        _ => "Sys"
+    };
+
+    private static string GetLabel(string role) => role switch
+    {
+        "user" => "You",
+        "assistant" => "Ollama",
+        _ => role
+    };
+}
