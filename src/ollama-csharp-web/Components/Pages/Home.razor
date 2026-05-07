@@ -34,8 +34,13 @@
             <button type="button" class="ghost-button" @onclick="LoadModelsAsync" disabled="@(isLoadingModels || isSending)">
                 @(isLoadingModels ? "Loading..." : "Refresh")
             </button>
-            <button type="button" class="danger-button" @onclick="ClearChat" disabled="@isSending">
-                Clear
+            <button
+                type="button"
+                class="danger-button"
+                title="Clear this browser session's chat history"
+                @onclick="ClearChatHistory"
+                disabled="@isSending">
+                Clear history
             </button>
         </div>
     </header>
@@ -152,13 +157,13 @@
         prompt = string.Empty;
         errorMessage = null;
         messages.Add(userMessage);
+        var requestMessages = BuildCurrentSessionHistory();
 
         var assistantMessage = new ChatMessage("assistant", string.Empty);
         messages.Add(assistantMessage);
 
         isSending = true;
         sendCancellation = new CancellationTokenSource();
-        var requestMessages = messages.Where(message => !ReferenceEquals(message, assistantMessage)).ToList();
 
         try
         {
@@ -198,7 +203,15 @@
         sendCancellation?.Cancel();
     }
 
-    private void ClearChat()
+    private List<ChatMessage> BuildCurrentSessionHistory()
+    {
+        return messages
+            .Where(message => !string.IsNullOrWhiteSpace(message.Content))
+            .Select(message => new ChatMessage(message.Role, message.Content))
+            .ToList();
+    }
+
+    private void ClearChatHistory()
     {
         sendCancellation?.Cancel();
         messages.Clear();

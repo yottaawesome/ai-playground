@@ -12,7 +12,8 @@ The app is intentionally server-side: the browser connects to the ASP.NET Core a
 | Model dropdown | Loads locally installed models from `GET /api/tags`. |
 | Markdown output | Uses Markdig to render headings, lists, tables, blockquotes, and code blocks. Raw HTML in Markdown is disabled. |
 | Streaming UI | Appends assistant tokens as Ollama sends them. |
-| Chat controls | Includes Refresh models, Clear chat, Send, and Stop streaming controls. |
+| Session chat history | Sends the current browser session's previous user and assistant messages with each request so Ollama can preserve context. |
+| Chat controls | Includes Refresh models, Clear history, Send, and Stop streaming controls. |
 
 ## Required software
 
@@ -139,10 +140,13 @@ Use the double underscore in `Ollama__BaseUrl`; ASP.NET Core maps that to `Ollam
 
 1. When the page loads, `OllamaClient.GetModelsAsync` calls `GET /api/tags`.
 2. The returned model names populate the dropdown.
-3. When you send a prompt, the app sends the full chat history to `POST /api/chat`.
-4. Ollama streams newline-delimited JSON chunks.
-5. `OllamaClient.StreamChatAsync` parses each chunk and yields the assistant content.
-6. The Blazor page appends each chunk to the assistant message and re-renders it through `MarkdownFormatter`.
+3. When you send a prompt, the app snapshots the current browser session's non-empty user and assistant messages.
+4. The app sends that full session history to `POST /api/chat`, including the newest user prompt, so Ollama can answer with context from the conversation.
+5. Ollama streams newline-delimited JSON chunks.
+6. `OllamaClient.StreamChatAsync` parses each chunk and yields the assistant content.
+7. The Blazor page appends each chunk to the assistant message and re-renders it through `MarkdownFormatter`.
+
+The Clear history button empties only the in-memory chat history for the current browser session. The app does not persist conversations across app restarts or browser sessions.
 
 The C# request body matches Ollama's chat API shape:
 
@@ -152,7 +156,15 @@ The C# request body matches Ollama's chat API shape:
   "messages": [
     {
       "role": "user",
-      "content": "Give me a Markdown table comparing local LLM runtimes."
+      "content": "Give me three project name ideas."
+    },
+    {
+      "role": "assistant",
+      "content": "1. LocalSpark\n2. ModelDock\n3. PromptForge"
+    },
+    {
+      "role": "user",
+      "content": "Put those names in a Markdown table with pros and cons."
     }
   ],
   "stream": true
