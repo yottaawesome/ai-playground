@@ -8,6 +8,8 @@ internal static class Ansi
 
     public static string Dim(string value) => Wrap("2", value);
 
+    public static string Thinking(string value) => Wrap("2;90", value);
+
     public static string Italic(string value) => Wrap("3", value);
 
     public static string Underline(string value) => Wrap("4", value);

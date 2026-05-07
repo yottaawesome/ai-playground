@@ -70,8 +70,10 @@ The assistant response is rendered with terminal formatting for common Markdown 
 3. Blockquotes.
 4. Inline code.
 5. Fenced code blocks.
-6. Markdown tables.
+6. Markdown tables, with padded columns so table cells line up in the terminal.
 7. Links, bold, and italics.
+
+If a model emits an internal reasoning section as `<think>...</think>` or as `Thinking...` through `...done thinking.`, the wrapper prints that section in darker dim text and then resumes normal Markdown rendering for the final answer.
 
 ## Chat mode commands
 
